@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           extend-luogu
 // @namespace      http://tampermonkey.net/
-// @version        4.2.3
+// @version        4.2.4
 //
 // @match          https://*.luogu.com.cn/*
 // @match          https://*.luogu.org/*
@@ -37,14 +37,8 @@
 // ==Update==
 
 const update_log = `
--M virtual-participation
- : 创建重现赛，仿真测试
- ! 自己能看到自己创建比赛里的题目
-*M user-problem-color
- : 加快了比较
- *M emoticon, benben-emoticon
-  : 采用 GitHub 源获取表情，提升了稳定性
-*- 如果洛谷前端加载失败，exlg 将会中止加载
+$M emoticon
+ : Add readabililty.
 `.trim()
 
 // ==/Update==
@@ -221,7 +215,7 @@ const register_badge = async () => {
                     {
                         errorcode: 0,
                         message: `"Succeed in creating a new badge!"`,
-                        ontitle: "[exlg] 成功创建 badge",
+                        ontitle: "成功创建 badge",
                         onlog: "Successfully created a badge!"
                     },
                     {
@@ -373,8 +367,8 @@ const mod = {
         mod.data[name] = {
             ty: "object",
             lvs: {
-                ...data,
-                on: { ty: "boolean", dft: true }
+                on: { ty: "boolean", dft: true },
+                ...data
             }
         }
 
@@ -599,49 +593,36 @@ mod.reg_main("dash-board", "控制面板", mod.path_dash_board, {
             name: "Modules",
             description: "功能",
             icon: "tunes",
-            children: mod._
-                .filter(m => ! m.name.startsWith("@"))
-                .map(m => ({
-                    rawName: m.name,
-                    name: m.name.replace(/^[@^]/g, ""),
-                    description: m.info,
-                    settings: Object.entries(mod.data[m.name].lvs)
-                        .filter(([ k, s ]) => k !== "on" && ! s.priv)
-                        .map(([ k, s ]) => ({
-                            name: k,
-                            displayName: k.split("_").map(t => t.toInitialCase()).join(" "),
-                            description: s.info,
-                            type: { number: "SILDER", boolean: "CHECKBOX", string: "TEXTBOX", enum: "" }[s.ty],
-                            ...(s.ty === "boolean" && { type: "CHECKBOX" }),
-                            ...(s.ty === "number"  && { type: "SLIDER", minValue: s.min, maxValue: s.max, increment: s.step }),
-                            ...(s.ty === "enum"    && { type: "SELECTBOX", acceptableValues: s.vals })
-                        }))
-                }))
+            filter: m => ! m.name.startsWith("@")
         },
         {
             name: "Core",
             description: "核心",
             icon: "bug_report",
-            children: mod._
-                .filter(m => m.name.startsWith("@"))
-                .map(m => ({
-                    rawName: m.name,
-                    name: m.name.replace(/^[@^]/g, ""),
-                    description: m.info,
-                    settings: Object.entries(mod.data[m.name].lvs)
-                        .filter(([ k, s ]) => k !== "on" && ! s.priv)
-                        .map(([ k, s ]) => ({
-                            name: k,
-                            displayName: k.split("_").map(t => t.toInitialCase()).join(" "),
-                            description: s.info,
-                            type: { number: "SILDER", boolean: "CHECKBOX", string: "TEXTBOX", enum: "" }[s.ty],
-                            ...(s.ty === "boolean" && { type: "CHECKBOX" }),
-                            ...(s.ty === "number"  && { type: "SLIDER", minValue: s.min, maxValue: s.max, increment: Math.ceil((s.max - s.min) / 50) }),
-                            ...(s.ty === "enum"    && { type: "SELECTBOX", acceptableValues: s.vals })
-                        }))
-                }))
-        },
-    ]
+            filter: m => m.name.startsWith("@")
+        }
+    ].map(cat => {
+        cat.children = mod._
+            .filter(cat.filter)
+            .map(m => ({
+                rawName: m.name,
+                name: m.name.replace(/^[@^]/g, ""),
+                description: m.info,
+                settings: Object.entries(mod.data[m.name].lvs)
+                    .filter(([ k, s ]) => k !== "on" && ! s.priv)
+                    .map(([ k, s ]) => ({
+                        name: k,
+                        displayName: k.split("_").map(t => t.toInitialCase()).join(" "),
+                        description: s.info,
+                        type: { number: "SILDER", boolean: "CHECKBOX", string: "TEXTBOX", enum: "" }[s.ty],
+                        ...(s.ty === "boolean" && { type: "CHECKBOX" }),
+                        ...(s.ty === "number"  && { type: "SLIDER", minValue: s.min, maxValue: s.max, increment: s.step }),
+                        ...(s.ty === "enum"    && { type: "SELECTBOX", acceptableValues: s.vals })
+                    }))
+            }))
+        return cat
+    })
+
     console.log(modules)
     uindow.guiStart(modules)
 })
@@ -663,7 +644,6 @@ mod.reg_hook_new("dash-bridge", "控制桥", "@/.*", {
     if ([ "exlg", "gh_index", "debug"].indexOf(msto.source) === -1) msto.source = "exlg"
 
     const create_window = ! args.parent().hasClass("mobile-nav-container")
-    // console.log(create_window)
     const $spn = $(`<span id="exlg-dash-window" class="exlg-window" style="display: none;width: 300px;"></span>`).css("left", "-125px")
     const $btn = $(`<div id="exlg-dash" exlg="exlg">exlg</div>`)
         .prependTo(args)
@@ -671,7 +651,6 @@ mod.reg_hook_new("dash-bridge", "控制桥", "@/.*", {
             exlg: "cornflowerblue",
             gh_index: "darkblue",
             debug: "steelblue"
-            // gh_bundle: "darkslateblue"
         }[msto.source])
         .css("margin-top", args.hasClass("nav-container") ? "5px" : "0px")
     const _jump_settings = () => uindow.exlg.dash = uindow.open({
@@ -1004,7 +983,7 @@ mod.reg("exlg-dialog-board", "exlg_公告板", "@/.*", {
      </div>
     </div>
    </div>`).appendTo($(document.body))
-    const wait_time = {"0s": 0, ".2s": 100, ".25s": 250, ".4s": 400 }[msto.animation_speed]
+    const wait_time = { "0s": 0, ".2s": 100, ".25s": 250, ".4s": 400 } [msto.animation_speed]
     const wrapper = $wrapper[0], container = wrapper.firstElementChild,
         header = container.firstElementChild.firstElementChild.firstElementChild, content = container.lastElementChild.firstElementChild,
         close_btn = container.firstElementChild.lastElementChild
@@ -1202,158 +1181,160 @@ mod.reg("update-log", "更新日志显示", "@/.*", {
 `)
 
 mod.reg("emoticon", "表情输入", [ "@/paste", "@/discuss/.*" ], {
-    show: { ty: "boolean", dft: true, info: ["Show", "是否显示"] },
-    height_limit: { ty: "boolean", dft: true, info: ["Height limit", "高度上限"] }
+    show: { ty: "boolean", dft: true, info: [ "Show", "是否显示" ] },
+    fold: { ty: "boolean", dft: true, info: [ "Fold", "是否折叠" ] }
 }, ({ msto }) => {
     const emo = [
-        { type: "emo", name: [ "kk" ], slug: "0" },
-        { type: "emo", name: [ "jk" ], slug: "1" },
-        { type: "emo", name: [ "se" ], slug: "2" },
-        { type: "emo", name: [ "qq" ], slug: "3" },
-        { type: "emo", name: [ "xyx" ], slug: "4" },
-        { type: "emo", name: [ "xia" ], slug: "5" },
-        { type: "emo", name: [ "cy" ], slug: "6" },
-        { type: "emo", name: [ "ll" ], slug: "7" },
-        { type: "emo", name: [ "xk" ], slug: "8" },
-        { type: "emo", name: [ "qiao" ], slug: "9" },
+        { type: "emo", name: [ "kk" ],    slug: "0" },
+        { type: "emo", name: [ "jk" ],    slug: "1" },
+        { type: "emo", name: [ "se" ],    slug: "2" },
+        { type: "emo", name: [ "qq" ],    slug: "3" },
+        { type: "emo", name: [ "xyx" ],   slug: "4" },
+        { type: "emo", name: [ "xia" ],   slug: "5" },
+        { type: "emo", name: [ "cy" ],    slug: "6" },
+        { type: "emo", name: [ "ll" ],    slug: "7" },
+        { type: "emo", name: [ "xk" ],    slug: "8" },
+        { type: "emo", name: [ "qiao" ],  slug: "9" },
         { type: "emo", name: [ "qiang" ], slug: "a" },
-        { type: "emo", name: [ "ruo" ], slug: "b" },
-        { type: "emo", name: [ "mg" ], slug: "c" },
-        { type: "emo", name: [ "dx" ], slug: "d" },
-        { type: "emo", name: [ "youl" ], slug: "e" },
-        { type: "emo", name: [ "baojin" ], slug: "f" },
-        { type: "emo", name: [ "shq" ], slug: "g" },
-        { type: "emo", name: [ "lb" ], slug: "h" },
-        { type: "emo", name: [ "lh" ], slug: "i" },
-        { type: "emo", name: [ "qd" ], slug: "j" },
-        { type: "emo", name: [ "fad" ], slug: "k" },
-        { type: "emo", name: [ "dao" ], slug: "l" },
-        { type: "emo", name: [ "cd" ], slug: "m" },
-        { type: "emo", name: [ "kun" ], slug: "n" },
-        { type: "emo", name: [ "px" ], slug: "o" },
-        { type: "emo", name: [ "ts" ], slug: "p" },
-        { type: "emo", name: [ "kl" ], slug: "q" },
-        { type: "emo", name: [ "yiw" ], slug: "r" },
-        { type: "emo", name: [ "dk" ], slug: "s" },
-        { type: "txt", name: [ "sto" ], slug: "gg", name_display: "sto", width: 40 },
-        { type: "txt", name: [ "orz" ], slug: "gh", name_display: "orz", width: 40 },
-        { type: "txt", name: [ "qwq" ], slug: "g5", name_display: "qwq", width: 40 },
-        { type: "txt", name: [ "hqlm" ], slug: "l0", name_display: "火前留名" },
-        { type: "txt", name: [ "sqlm" ], slug: "l1", name_display: "山前留名" },
-        { type: "txt", name: [ "xbt" ], slug: "g1", name_display: "屑标题" },
-        { type: "txt", name: [ "iee", "wee" ], slug: "g2", name_display: "我谔谔" },
-        { type: "txt", name: [ "kg" ], slug: "g3", name_display: "烤咕" },
-        { type: "txt", name: [ "gl" ], slug: "g4", name_display: "盖楼" },
-        { type: "txt", name: [ "wyy" ], slug: "g6", name_display: "无意义" },
-        { type: "txt", name: [ "wgzs" ], slug: "g7", name_display: "违规紫衫" },
-        { type: "txt", name: [ "tt" ], slug: "g8", name_display: "贴贴" },
-        { type: "txt", name: [ "jbl" ], slug: "g9", name_display: "举报了" },
-        { type: "txt", name: [ "%%%", "mmm" ], slug: "ga", name_display: "%%%" },
-        { type: "txt", name: [ "ngrb" ], slug: "gb", name_display: "你谷日爆" },
-        { type: "txt", name: [ "qpzc", "qp", "zc" ], slug: "gc", name_display: "前排资瓷" },
-        { type: "txt", name: [ "cmzz" ], slug: "gd", name_display: "臭名昭著" },
-        { type: "txt", name: [ "zyx" ], slug: "ge", name_display: "致远星" },
-        { type: "txt", name: [ "zh" ], slug: "gf", name_display: "祝好" },
+        { type: "emo", name: [ "ruo" ],   slug: "b" },
+        { type: "emo", name: [ "mg" ],    slug: "c" },
+        { type: "emo", name: [ "dx" ],    slug: "d" },
+        { type: "emo", name: [ "youl" ],  slug: "e" },
+        { type: "emo", name: [ "bj" ],    slug: "f" },
+        { type: "emo", name: [ "shq" ],   slug: "g" },
+        { type: "emo", name: [ "lb" ],    slug: "h" },
+        { type: "emo", name: [ "lh" ],    slug: "i" },
+        { type: "emo", name: [ "qd" ],    slug: "j" },
+        { type: "emo", name: [ "fad" ],   slug: "k" },
+        { type: "emo", name: [ "dao" ],   slug: "l" },
+        { type: "emo", name: [ "cd" ],    slug: "m" },
+        { type: "emo", name: [ "kun" ],   slug: "n" },
+        { type: "emo", name: [ "px" ],    slug: "o" },
+        { type: "emo", name: [ "ts" ],    slug: "p" },
+        { type: "emo", name: [ "kl" ],    slug: "q" },
+        { type: "emo", name: [ "yiw" ],   slug: "r" },
+        { type: "emo", name: [ "dk" ],    slug: "s" },
+        { type: "txt", name: [ "sto" ],   slug: "gg", name_display: "sto" },
+        { type: "txt", name: [ "orz" ],   slug: "gh", name_display: "orz" },
+        { type: "txt", name: [ "qwq" ],   slug: "g5", name_display: "qwq" },
+        { type: "txt", name: [ "hqlm" ],  slug: "l0", name_display: "火前留名" },
+        { type: "txt", name: [ "sqlm" ],  slug: "l1", name_display: "山前留名" },
+        { type: "txt", name: [ "xbt" ],   slug: "g1", name_display: "屑标题" },
+        { type: "txt", name: [ "iee" ],   slug: "g2", name_display: "我谔谔" },
+        { type: "txt", name: [ "kg" ],    slug: "g3", name_display: "烤咕" },
+        { type: "txt", name: [ "gl" ],    slug: "g4", name_display: "盖楼" },
+        { type: "txt", name: [ "wyy" ],   slug: "g6", name_display: "无意义" },
+        { type: "txt", name: [ "wgzs" ],  slug: "g7", name_display: "违规紫衫" },
+        { type: "txt", name: [ "tt" ],    slug: "g8", name_display: "贴贴" },
+        { type: "txt", name: [ "jbl" ],   slug: "g9", name_display: "举报了" },
+        { type: "txt", name: [ "%%%" ],   slug: "ga", name_display: "%%%" },
+        { type: "txt", name: [ "ngrb" ],  slug: "gb", name_display: "你谷日爆" },
+        { type: "txt", name: [ "qpzc" ],  slug: "gc", name_display: "前排资瓷" },
+        { type: "txt", name: [ "cmzz" ],  slug: "gd", name_display: "臭名昭著" },
+        { type: "txt", name: [ "zyx" ],   slug: "ge", name_display: "致远星" },
+        { type: "txt", name: [ "zh" ],    slug: "gf", name_display: "祝好" },
     ]
 
     const emo_url = name => `https://cdn.jsdelivr.net/gh/extend-luogu/extend-luogu/img/emoji/${name}`
-    const $menu = $(".mp-editor-menu"),
-        $txt = $(".CodeMirror-wrap textarea")
+    const $menu = $(".mp-editor-menu"), $txt = $(".CodeMirror-wrap textarea")
 
     if (! $menu.length) return
 
-    const $emo_menu = $menu.clone().addClass("exlg-emo")
+    const $emo_menu = $menu.clone().addClass("exlg-emo-menu").html("")
     $menu.after($emo_menu)
-    $emo_menu[0].innerHTML = ""
-
-    $("<br />").appendTo($menu)
-    $(".mp-editor-ground").addClass("exlg-ext")
-
-    const $ground = $(".mp-editor-ground"), $show_hide = $menu.children().first().clone(true).addClass("exlg-unselectable"), $set_height = $menu.children().first().clone(true).addClass("exlg-unselectable")
-    $menu.children().last().before($show_hide)
-    $menu.children().last().before($set_height)
-    $show_hide.children()[0].innerHTML = (msto.show) ? "隐藏" : "显示"
-    if (msto.show) $emo_menu.addClass("exlg-show-emo"), $ground.addClass("exlg-show-emo")
-    $show_hide.on("click", () => {
-        $show_hide.children()[0].innerHTML = ["显示", "隐藏"][["隐藏", "显示"].indexOf($show_hide.children()[0].innerHTML)]
-        $emo_menu.toggleClass("exlg-show-emo")
-        $ground.toggleClass("exlg-show-emo")
-        msto.show = ! msto.show
-    })
-    $set_height.children()[0].innerHTML = (msto.height_limit) ? "展开" : "收起"
-    if (msto.height_limit) $emo_menu.addClass("exlg-show-emo-short"), $ground.addClass("exlg-show-emo-short")
-    else $emo_menu.addClass("exlg-show-emo-long"), $ground.addClass("exlg-show-emo-long")
-    $set_height.on("click", () => {
-        $set_height.children()[0].innerHTML = ["收起", "展开"][["展开", "收起"].indexOf($set_height.children()[0].innerHTML)]
-        $emo_menu.toggleClass("exlg-show-emo-short").toggleClass("exlg-show-emo-long")
-        $ground.toggleClass("exlg-show-emo-short").toggleClass("exlg-show-emo-long")
-        msto.height_limit = ! msto.height_limit
-    })
 
     emo.forEach(m => {
-        const $emo = $((m.type === "emo")?
-            `<button class="exlg-emo-btn" exlg="exlg"><img src="${emo_url(m.slug)}" /></button>`
-            :
-            `<button class="exlg-emo-btn" exlg="exlg">${m.name_display}</button>`
-        ).on("click", () => $txt
-            .trigger("focus")
-            .val(`![](${emo_url(m.slug)})`)
-            .trigger("input")
-        ).appendTo($emo_menu)
-        if (m.width) $emo.css("width", m.width + "px")
-        else if(m.type === "emo") $emo.css("width", "40px")
-        else $emo.css("width", "83px")
-    })
-    $emo_menu.append("<div style='height: .35em'></div>")
-
-    /*
-    $txt.on("input", e => {
-        if (e.originalEvent.data === "/")
-            mdp.content = mdp.content.replace(/\/[0-9a-z]\//g, (_, emo_txt) =>
-                `![](` + emo_url(emo.find(m => m.includes(emo_txt))) + `)`
+        $(`<button></button>`)
+            .addClass("exlg-emo-btn").addClass(m.type)
+            .html(m.type === "emo"
+                ? `<img src="${ emo_url(m.slug) }" />`
+                : m.name_display
             )
+            .on("click", () => $txt
+                .trigger("focus")
+                .val(`![](${emo_url(m.slug)})`)
+                .trigger("input")
+            )
+            .appendTo($emo_menu)
     })
-    */
-    // Hack: 监听输入/，类似qq的表情快捷键功能。但是锅了，所以删掉力
+
+    const $menu_txt_btn = (text, ini, func) => {
+        const $btn = $menu.children().first().clone(true).addClass("exlg-unselectable")
+        let i
+        $btn.state = s => {
+            s ??= text[ i = 1 - i ]
+            $btn.children("a").attr("title", s).html(s)
+            func.call($btn, i)
+            return $btn
+        }
+        return $btn
+            .state(text[i = ini])
+            .on("click", () => $btn.state())
+            .appendTo($menu)
+    }
+
+    $menu_txt_btn([ "显示", "隐藏" ], + msto.show, i => {
+        $emo_menu[ i ? "show" : "hide" ]()
+        msto.show = i
+    })
+
+    $menu_txt_btn([ "折叠", "展开" ], + msto.fold, i => {
+        $emo_menu.height(i ? "32px" : (() => {
+            $emo_menu.height("")
+            const h = $emo_menu.height()
+            $emo_menu.height("32px")
+            return h
+        }))
+        msto.fold = i
+    })
+
+    // Kill: 监听输入/，类似qq的表情快捷键功能。但是锅了，所以删掉力
+    // $txt.on("input", e => {
+    //     if (e.originalEvent.data === "/")
+    //         mdp.content = mdp.content.replace(/\/[0-9a-z]\//g, (_, emo_txt) =>
+    //             `![](` + emo_url(emo.find(m => m.includes(emo_txt))) + `)`
+    //         )
+    // })
 }, `
-    .mp-editor-ground.exlg-ext.exlg-show-emo.exlg-show-emo-long {
-        top: 8.25em !important;
-    }
-    .mp-editor-ground.exlg-ext.exlg-show-emo.exlg-show-emo-short {
-        top: 4.75em !important;
-    }
-    .mp-editor-menu > br ~ li {
-        position: relative;
-        display: inline-block;
-        margin: 0;
-        padding: 5px 1px;
-    }
-    .mp-editor-menu.exlg-show-emo.exlg-show-emo-long {
-        height: 6em !important;
-        overflow: auto;
-        background-color: #fff;
-    }
-    .mp-editor-menu.exlg-show-emo.exlg-show-emo-short {
-        height: 2.5em !important;
-        overflow: auto;
-        background-color: #fff;
-    }
+
     .exlg-emo-btn {
-        position: relative;
-        top: 0px;
         border: none;
-        background-color: #eee;
         border-radius: .7em;
-        margin: .1em;
-        transition: all .4s;
-        height: 2em;
+        margin: .2em;
+        background-color: white;
+        color: cornflowerblue;
+        transition: background-color .5s, color .5s;
+        box-shadow: 0 0 .1em .1em cornflowerblue;
     }
     .exlg-emo-btn:hover {
-        background-color: #f3f3f3;
-        top: -3px;
+        background-color: cornflowerblue;
+        color: white;
     }
-    .exlg-emo, .exlg-ext {
-        transition: all .15s;
+    .exlg-emo-btn.emo {
+        width: 40px;
+    } 
+    .exlg-emo-btn.txt {
+        width: 83px;
+    }
+
+    .exlg-emo-menu {
+        margin: -5px 0 5px 0 !important;
+        /* Note: height: calc(100% - 38px + 5px); */
+        transition: height .5s;
+    }
+
+    .mp-editor-container {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .mp-editor-toolbar {
+        height: unset !important;
+    }
+
+    .mp-editor-ground {
+        position: unset !important;
+        height: 100%;
     }
 `)
 
@@ -1965,7 +1946,7 @@ div.exlg-copied {
 `)
 
 mod.reg_hook_new("rand-training-problem", "题单内随机跳题", "@/training/[0-9]+(#.*)?", {
-    mode: { ty: "enum", vals: ["unac only", "unac and new", "new only"], dft : "unac and new", info: [
+    mode: { ty: "enum", vals: [ "unac only", "unac and new", "new only" ], dft: "unac and new", info: [
         "Preferences about problem choosing", "随机跳题的题目种类"
     ] }
 }, ({ msto, args }) => {
@@ -2629,9 +2610,10 @@ mod.reg_chore("sponsor-list", "获取标签列表", "1D", "@/.*", {
 })
 
 mod.reg_pre("original-difficulty", "获取原始难度", ["@/problem/CF.*", "@/problem/AT.*"], {
-    cf_src: { ty: "enum", dft: "codeforces.com", vals: [ "codeforces.com", "codeforces.ml" ], info: [
-        "Codeforces problem source", "CF 题目源"
-    ] },
+    cf_src: {
+        ty: "enum", dft: "codeforces.com", vals: [ "codeforces.com", "codeforces.ml" ],
+        info: [ "Codeforces problem source", "CF 题目源" ]
+    },
     atdiff: { ty: "string", priv: true },
     atd_lst_upd: { ty: "number", dft: -1, priv: true }
 }, async ({ msto }) => {
@@ -2804,13 +2786,14 @@ mod.reg("benben-emoticon", "犇犇表情输入", [ "@/" ], {
         { type: "txt", name: [ "zyx" ], slug: "ge", name_display: "致远星" },
         { type: "txt", name: [ "zh" ], slug: "gf", name_display: "祝好" },
     ]
-    const $txt = $("#feed-content"), emo_url = name => `https://cdn.jsdelivr.net/gh/extend-luogu/extend-luogu/img/emoji/${name}`, txt = $txt[0]
-    $("#feed-content").before("<div id='emo-lst'></div>")
+    const $txt = $("#feed-content"), txt = $txt[0]
+    $("#feed-content").before(`<div id="emo-lst"></div>`)
+    const emo_url = name => `https://cdn.jsdelivr.net/gh/extend-luogu/extend-luogu/img/emoji/${name}`
+
     emo.forEach(m => {
-        const $emo = $((m.type === "emo")?
-            `<button class="exlg-emo-btn" exlg="exlg"><img src="${emo_url(m.slug)}" /></button>`
-            :
-            `<button class="exlg-emo-btn" exlg="exlg">${m.name_display}</button>`
+        const $emo = $((m.type === "emo")
+            ? `<button class="exlg-emo-btn" exlg="exlg"><img src="${emo_url(m.slug)}" /></button>`
+            : `<button class="exlg-emo-btn" exlg="exlg">${m.name_display}</button>`
         ).on("click", () => {
             const preval = txt.value
             const pselstart = txt.selectionStart
@@ -2832,20 +2815,20 @@ mod.reg("benben-emoticon", "犇犇表情输入", [ "@/" ], {
             )
     })
 }, `
-.exlg-emo-btn {
-    position: relative;
-    top: 0px;
-    border: none;
-    background-color: #eee;
-    border-radius: .7em;
-    margin: .1em;
-    transition: all .4s;
-    height: 2em;
-}
-.exlg-emo-btn:hover {
-    background-color: #f3f3f3;
-    top: -3px;
-}
+    .exlg-emo-btn {
+        position: relative;
+        top: 0px;
+        border: none;
+        background-color: #eee;
+        border-radius: .7em;
+        margin: .1em;
+        transition: all .4s;
+        height: 2em;
+    }
+    .exlg-emo-btn:hover {
+        background-color: #f3f3f3;
+        top: -3px;
+    }
 `)
 
 mod.reg("user-css", "自定义样式表", ".*", {
