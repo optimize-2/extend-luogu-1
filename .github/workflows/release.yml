@@ -26,6 +26,12 @@ jobs:
         run: |
           pnpm --filter cli-mod install
           pnpm --filter cli-mod run build
+      - name: Get version and log
+        env:
+          MSG: ${{ toJSON(github.event.commits.*.message) }}
+        run: |
+          export VER=$(./scripts/tag.py)
+          echo "VER=$VER" >> $GITHUB_ENV
       - name: Install dependencies
         run: pnpm install
       - name: Build userscript
@@ -37,3 +43,13 @@ jobs:
         with:
           body_path: CHANGELOG.md
           files: dist/extend-luogu.min.user.js
+      - name: Publish to OSS
+        uses: wxh06/dist2oss@v1
+        with:
+          version: ${{ env.VER }}
+          stable: ${{ !contains( env.VER, '-' ) }}
+          access-key-id: ${{ secrets.OSS_ID }}
+          access-key-secret: ${{ secrets.OSS_SECRET }}
+          bucket: exlg-celeste
+          region: oss-cn-shanghai
+          pattern: dist/extend-luogu.min.user.js
