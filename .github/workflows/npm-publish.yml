@@ -30,6 +30,25 @@ jobs:
         run: pnpm install
       - name: Build all workspaces
         run: pnpm -r build
+      - name: Get version and log
+        env:
+          MSG: ${{ toJSON(github.event.commits.*.message) }}
+        run: |
+          export VER=$(./scripts/tag.py)
+          echo "VER=$VER" >> $GITHUB_ENV
+      - name: Build userscript
+        run: pnpm build
+      - name: Publish to OSS
+        uses: wxh06/dist2oss@v1
+        with:
+          version: ${{ env.VER }}
+          stable: ${{ !contains( env.VER, '-' ) }}
+          access-key-id: ${{ secrets.OSS_ID }}
+          access-key-secret: ${{ secrets.OSS_SECRET }}
+          bucket: exlg-celeste
+          region: oss-cn-shanghai
+          pattern: dist/extend-luogu.min.user.js
+
 
   publish-npm:
     needs: build

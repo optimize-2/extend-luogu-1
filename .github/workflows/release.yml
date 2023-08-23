@@ -1,0 +1,54 @@
+---
+name: Release
+
+on:
+  push:
+    tags:
+      - celeste-*
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 7
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 'lts/*'
+          cache: pnpm
+      - name: Build cli-mod
+        run: |
+          pnpm --filter cli-mod install
+          pnpm --filter cli-mod run build
+      - name: Get version and log
+        # env:
+        #   MSG: ${{ toJSON(github.event.commits.*.message) }}
+        run: |
+          echo 123456
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build userscript
+        run: pnpm build
+      - name: Generate changelog
+        run: pnpm standard-changelog
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG.md
+          files: dist/extend-luogu.min.user.js
+      - name: Publish to OSS
+        uses: wxh06/dist2oss@v1
+        with:
+          version: ${{ env.VER }}
+          stable: ${{ !contains( env.VER, '-' ) }}
+          access-key-id: ${{ secrets.OSS_ID }}
+          access-key-secret: ${{ secrets.OSS_SECRET }}
+          bucket: exlg-celeste
+          region: oss-cn-shanghai
+          pattern: dist/extend-luogu.min.user.js
