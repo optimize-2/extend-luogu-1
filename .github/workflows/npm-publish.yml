@@ -34,6 +34,7 @@ jobs:
         env:
           MSG: ${{ toJSON(github.event.commits.*.message) }}
         run: |
+          chmod +x ./scripts/tag.py
           export VER=$(./scripts/tag.py)
           echo "VER=$VER" >> $GITHUB_ENV
       - name: Build userscript
