@@ -27,11 +27,9 @@ jobs:
           pnpm --filter cli-mod install
           pnpm --filter cli-mod run build
       - name: Get version and log
-        env:
-          MSG: ${{ toJSON(github.event.commits.*.message) }}
-        run: |
-          export VER=$(./scripts/tag.py)
-          echo "VER=$VER" >> $GITHUB_ENV
+        # env:
+        #   MSG: ${{ toJSON(github.event.commits.*.message) }}
+        run: echo 123456
       - name: Install dependencies
         run: pnpm install
       - name: Build userscript
