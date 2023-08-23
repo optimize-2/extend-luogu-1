@@ -38,6 +38,8 @@ jobs:
           echo "VER=$ver" >> $GITHUB_ENV
           echo "Version: $ver" > ./resources/update-log.txt
           echo "Commit Message: $msg" >> ./resources/update-log.txt
+          echo "Version: ${{ env.VER }}"
+          cat ./resources/update-log.txt
       - name: Build userscript
         run: pnpm build
       - name: Publish to OSS
